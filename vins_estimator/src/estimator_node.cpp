@@ -123,7 +123,7 @@ getMeasurements()
         if (imu_buf.empty() || feature_buf.empty())
             return measurements;
 
-        //对齐标准：IMU最后一个数据的时间要大于第一个图像特征数据的时间
+        //对齐标准：IMU最后一个数据的时间要大于第一个图像特征数据的时间(td表示imu和相机时间戳的误差间隔，本数据集td为0)
         if (!(imu_buf.back()->header.stamp.toSec() > feature_buf.front()->header.stamp.toSec() + estimator.td))
         {
             //ROS_WARN("wait for imu, only should happen at the beginning");
