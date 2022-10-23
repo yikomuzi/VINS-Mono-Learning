@@ -15,8 +15,8 @@ vector<uchar> r_status;
 vector<float> r_err;
 queue<sensor_msgs::ImageConstPtr> img_buf;
 
-ros::Publisher pub_img,pub_match;
-ros::Publisher pub_restart;
+//ros::Publisher pub_img, pub_match;
+//ros::Publisher pub_restart;
 
 //每个相机都有一个FeatureTracker实例，即trackerData[i]
 FeatureTracker trackerData[NUM_OF_CAM];
@@ -35,14 +35,12 @@ bool init_pub = 0;
  * @param[in]   img_msg 输入的图像
  * @return      void
 */
-void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
-{
+void img_callback(const sensor_msgs::ImageConstPtr &img_msg) {
     cout << "[img_callback] 运行一次img_callback函数, 图片时间戳："
-    << img_msg->header.stamp.sec << " " << img_msg->header.stamp.nsec << endl;
+         << img_msg->header.stamp.sec << " " << img_msg->header.stamp.nsec << endl;
     //判断是否是第一帧
-    if(first_image_flag)
-    {
-        sleep(60*2);
+    if (first_image_flag) {
+//        sleep(60 * 2);
         cout << "[img_callback] 第一帧图片" << endl;
         first_image_flag = false;
         first_image_time = img_msg->header.stamp.toSec();//记录第一个图像帧的时间
@@ -67,28 +65,26 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     // 发布频率控制
     // 并不是每读入一帧图像，就要发布特征点
     // 判断间隔时间内的发布次数
-    cout << "[img_callback] pub_count= "<< pub_count << endl;
-    if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)  // FREQ=10 (视频帧率为20，发布帧率为10)
+    cout << "[img_callback] pub_count= " << pub_count << endl;
+    if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <=
+        FREQ)  // FREQ=10 (视频帧率为20，发布帧率为10)
     {
-        cout << "[img_callback] PUB_THIS_FRAME=true "<< endl;
+        cout << "[img_callback] PUB_THIS_FRAME=true " << endl;
         PUB_THIS_FRAME = true;
         // 时间间隔内的发布频率十分接近设定频率时，更新时间间隔起始时刻，并将数据发布次数置0
-        if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
-        {
+        if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ) {
             first_image_time = img_msg->header.stamp.toSec();
             pub_count = 0;
         }
-    }
-    else{
-        cout << "[img_callback] PUB_THIS_FRAME=false "<< endl;
+    } else {
+        cout << "[img_callback] PUB_THIS_FRAME=false " << endl;
         PUB_THIS_FRAME = false;
     }
 
     cv_bridge::CvImageConstPtr ptr;
 
     //将图像编码8UC1转换为mono8
-    if (img_msg->encoding == "8UC1")
-    {
+    if (img_msg->encoding == "8UC1") {
         sensor_msgs::Image img;
         img.header = img_msg->header;
         img.height = img_msg->height;
@@ -98,29 +94,25 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         img.data = img_msg->data;
         img.encoding = "mono8";
         ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);
-    }
-    else
+    } else
         ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
 
     cv::Mat show_img = ptr->image;
 
     TicToc t_r;
 
-    for (int i = 0; i < NUM_OF_CAM; i++)
-    {
+    for (int i = 0; i < NUM_OF_CAM; i++) {
         ROS_DEBUG("processing camera %d", i);
         if (i != 1 || !STEREO_TRACK)//单目
             //readImage()函数读取图像数据进行处理
             trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.toSec());
         else//双目
         {
-            if (EQUALIZE)
-            {
+            if (EQUALIZE) {
                 //自适应直方图均衡化处理
                 cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
                 clahe->apply(ptr->image.rowRange(ROW * i, ROW * (i + 1)), trackerData[i].cur_img);
-            }
-            else
+            } else
                 trackerData[i].cur_img = ptr->image.rowRange(ROW * i, ROW * (i + 1));
         }
 
@@ -130,8 +122,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     }
 
     //更新全局ID
-    for (unsigned int i = 0;; i++)
-    {
+    for (unsigned int i = 0;; i++) {
         bool completed = false;
         for (int j = 0; j < NUM_OF_CAM; j++)
             if (j != 1 || !STEREO_TRACK)
@@ -143,8 +134,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     //1、将特征点id，矫正后归一化平面的3D点(x,y,z=1)，像素2D点(u,v)，像素的速度(vx,vy)，
     //封装成sensor_msgs::PointCloudPtr类型的feature_points实例中,发布到pub_img;
     //2、将图像封装到cv_bridge::cvtColor类型的ptr实例中发布到pub_match
-   if (PUB_THIS_FRAME)
-   {
+    if (PUB_THIS_FRAME) {
         pub_count++;
         sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
         sensor_msgs::ChannelFloat32 id_of_point;
@@ -157,16 +147,13 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         feature_points->header.frame_id = "world";
 
         vector<set<int>> hash_ids(NUM_OF_CAM);
-        for (int i = 0; i < NUM_OF_CAM; i++)
-        {
+        for (int i = 0; i < NUM_OF_CAM; i++) {
             auto &un_pts = trackerData[i].cur_un_pts;
             auto &cur_pts = trackerData[i].cur_pts;
             auto &ids = trackerData[i].ids;
             auto &pts_velocity = trackerData[i].pts_velocity;
-            for (unsigned int j = 0; j < ids.size(); j++)
-            {
-                if (trackerData[i].track_cnt[j] > 1)
-                {
+            for (unsigned int j = 0; j < ids.size(); j++) {
+                if (trackerData[i].track_cnt[j] > 1) {
                     int p_id = ids[j];
                     hash_ids[i].insert(p_id);
                     geometry_msgs::Point32 p;
@@ -189,100 +176,121 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         feature_points->channels.push_back(velocity_x_of_point);
         feature_points->channels.push_back(velocity_y_of_point);
         ROS_DEBUG("publish %f, at %f", feature_points->header.stamp.toSec(), ros::Time::now().toSec());
-        
+
         // skip the first image; since no optical speed on frist image
         if (!init_pub)//第一帧不发布
         {
             init_pub = 1;
-        }
-        else
-            pub_img.publish(feature_points);
+        } else {
+//            pub_img.publish(feature_points);
 
-        if (SHOW_TRACK)
-        {
-            ptr = cv_bridge::cvtColor(ptr, sensor_msgs::image_encodings::BGR8);
-            //cv::Mat stereo_img(ROW * NUM_OF_CAM, COL, CV_8UC3);
-            cv::Mat stereo_img = ptr->image;
-
-            for (int i = 0; i < NUM_OF_CAM; i++)
-            {
-                cv::Mat tmp_img = stereo_img.rowRange(i * ROW, (i + 1) * ROW);
-                cv::cvtColor(show_img, tmp_img, CV_GRAY2RGB);
-                //显示追踪状态，越红越好，越蓝越不行
-                for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++)
-                {
-                    double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE);
-                    cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
-                    //draw speed line
-                    /*
-                    Vector2d tmp_cur_un_pts (trackerData[i].cur_un_pts[j].x, trackerData[i].cur_un_pts[j].y);
-                    Vector2d tmp_pts_velocity (trackerData[i].pts_velocity[j].x, trackerData[i].pts_velocity[j].y);
-                    Vector3d tmp_prev_un_pts;
-                    tmp_prev_un_pts.head(2) = tmp_cur_un_pts - 0.10 * tmp_pts_velocity;
-                    tmp_prev_un_pts.z() = 1;
-                    Vector2d tmp_prev_uv;
-                    trackerData[i].m_camera->spaceToPlane(tmp_prev_un_pts, tmp_prev_uv);
-                    cv::line(tmp_img, trackerData[i].cur_pts[j], cv::Point2f(tmp_prev_uv.x(), tmp_prev_uv.y()), cv::Scalar(255 , 0, 0), 1 , 8, 0);
-                    */
-                    //char name[10];
-                    //sprintf(name, "%d", trackerData[i].ids[j]);
-                    //cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
-                }
-            }
-            //cv::imshow("vis", stereo_img);
-            //cv::waitKey(5);
-            pub_match.publish(ptr->toImageMsg());
         }
+
+
+//        if (SHOW_TRACK) {
+//            ptr = cv_bridge::cvtColor(ptr, sensor_msgs::image_encodings::BGR8);
+//            //cv::Mat stereo_img(ROW * NUM_OF_CAM, COL, CV_8UC3);
+//            cv::Mat stereo_img = ptr->image;
+//
+//            for (int i = 0; i < NUM_OF_CAM; i++) {
+//                cv::Mat tmp_img = stereo_img.rowRange(i * ROW, (i + 1) * ROW);
+//                cv::cvtColor(show_img, tmp_img, CV_GRAY2RGB);
+//                //显示追踪状态，越红越好，越蓝越不行
+//                for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++) {
+//                    double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE);
+//                    cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
+//                    //draw speed line
+//                    /*
+//                    Vector2d tmp_cur_un_pts (trackerData[i].cur_un_pts[j].x, trackerData[i].cur_un_pts[j].y);
+//                    Vector2d tmp_pts_velocity (trackerData[i].pts_velocity[j].x, trackerData[i].pts_velocity[j].y);
+//                    Vector3d tmp_prev_un_pts;
+//                    tmp_prev_un_pts.head(2) = tmp_cur_un_pts - 0.10 * tmp_pts_velocity;
+//                    tmp_prev_un_pts.z() = 1;
+//                    Vector2d tmp_prev_uv;
+//                    trackerData[i].m_camera->spaceToPlane(tmp_prev_un_pts, tmp_prev_uv);
+//                    cv::line(tmp_img, trackerData[i].cur_pts[j], cv::Point2f(tmp_prev_uv.x(), tmp_prev_uv.y()), cv::Scalar(255 , 0, 0), 1 , 8, 0);
+//                    */
+//                    //char name[10];
+//                    //sprintf(name, "%d", trackerData[i].ids[j]);
+//                    //cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+//                }
+//            }
+//            //cv::imshow("vis", stereo_img);
+//            //cv::waitKey(5);
+//            pub_match.publish(ptr->toImageMsg());
+//        }
     }
     ROS_INFO("whole feature tracker processing costs: %f", t_r.toc());
 }
 
-int main(int argc, char **argv)
-{
-    //ros初始化和设置句柄
-    ros::init(argc, argv, "feature_tracker");
-    ros::NodeHandle n("~");
+int main(int argc, char **argv) {
 
-    //设置logger的级别。 只有级别大于或等于level的日志记录消息才会得到处理。
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
-    
-    //读取yaml中的一些配置参数
-    readParameters(n);
+    /// 读取yaml中的一些配置参数
+    std::string config_file = "/home/ubuntu/Desktop/VINS-Mono-Learning_study/catkin_ws/src/VINS-Mono-Learning/config/euroc/euroc_config.yaml";
+    cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
+    if (!fsSettings.isOpened()) {
+        std::cerr << "ERROR: Wrong path to settings" << std::endl;
+    }
+    fsSettings["image_topic"] >> IMAGE_TOPIC;
+    fsSettings["imu_topic"] >> IMU_TOPIC;
+    MAX_CNT = fsSettings["max_cnt"];
+    MIN_DIST = fsSettings["min_dist"];
+    ROW = fsSettings["image_height"];
+    COL = fsSettings["image_width"];
+    FREQ = fsSettings["freq"];
+    F_THRESHOLD = fsSettings["F_threshold"];
+    SHOW_TRACK = fsSettings["show_track"];
+    EQUALIZE = fsSettings["equalize"];
+    FISHEYE = fsSettings["fisheye"];
+    CAM_NAMES.push_back(config_file);
 
-    //读取每个相机实例对应的相机内参
-    for (int i = 0; i < NUM_OF_CAM; i++) 
+    WINDOW_SIZE = 20;
+    STEREO_TRACK = false;
+    FOCAL_LENGTH = 460;
+    PUB_THIS_FRAME = false;
+
+    fsSettings.release();
+
+    /// 读取每个相机实例对应的相机内参
+    for (int i = 0; i < NUM_OF_CAM; i++)
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
 
-//    //判断是否加入鱼眼mask来去除边缘噪声
-//    if(FISHEYE)
-//    {
-//        for (int i = 0; i < NUM_OF_CAM; i++)
-//        {
-//            trackerData[i].fisheye_mask = cv::imread(FISHEYE_MASK, 0);
-//            if(!trackerData[i].fisheye_mask.data)
-//            {
-//                ROS_INFO("load mask fail");
-//                ROS_BREAK();
-//            }
-//            else
-//                ROS_INFO("load mask success");
-//        }
-//    }
+    ifstream cam_file("/remote-home/2132917/Desktop/EuRoC_MAV_Dataset/MH_01_easy/mav0/cam0/data.csv");
+    if (cam_file.is_open()) {
+        string file_line;
+        int count_line = 0;
+        while (getline(cam_file, file_line)) {
+            count_line++;
+            if (count_line == 1) {
+                continue;
+            }
+            istringstream line(file_line);
+            string img_stamp, img_name;
+            getline(line, img_stamp, ',');
+            getline(line, img_name, '\r');
+            uint64_t stamp;
+            uint32_t sec, nsec;
+            stamp = stoul(img_stamp);
+            sec = stamp / 1000000000;
+            nsec = stamp % 1000000000;
 
-    //订阅话题IMAGE_TOPIC(/cam0/image_raw),执行回调函数img_callback
-    ros::Subscriber sub_img = n.subscribe(IMAGE_TOPIC, 5000, img_callback);
+            string img_path = "/remote-home/2132917/Desktop/EuRoC_MAV_Dataset/MH_01_easy/mav0/cam0/data/" + img_name;
+            cv::Mat img = imread(img_path, cv::IMREAD_COLOR);
+            cv_bridge::CvImage img_bridge;
+            sensor_msgs::Image img_msg; // >> message to be sent
+            std_msgs::Header header; // empty header
+            header.seq = count_line - 2; // user defined counter
+            header.stamp = ros::Time(sec, nsec); // time
+            img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::MONO8, img);
+            img_bridge.toImageMsg(img_msg); // from cv_bridge to sensor_msgs::Image
 
-    //发布feature，实例feature_points，跟踪的特征点，给后端优化用
-    pub_img = n.advertise<sensor_msgs::PointCloud>("feature", 5000);
-    //发布feature_img，实例ptr，跟踪的特征点图，给RVIZ用和调试用
-    pub_match = n.advertise<sensor_msgs::Image>("feature_img",5000);
-    //发布restart
-    pub_restart = n.advertise<std_msgs::Bool>("restart",5000);
-    /*
-    if (SHOW_TRACK)
-        cv::namedWindow("vis", cv::WINDOW_NORMAL);
-    */
-    ros::spin();
+            sensor_msgs::ImageConstPtr image(new sensor_msgs::Image(img_msg));
+            img_callback(image);
+        }
+        cam_file.close();
+    }
+
+
     return 0;
 }
 
