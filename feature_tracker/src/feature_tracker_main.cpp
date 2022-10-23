@@ -26,6 +26,7 @@ int pub_count = 1;  // 时间间隔内关键帧的数量，用于判断发布频
 bool first_image_flag = true;
 double last_image_time = 0;//上一帧相机的时间戳
 bool init_pub = 0;
+vector<sensor_msgs::PointCloudPtr> v_feature_points;  // 创建一个数组存储原本应该发布的信息
 
 /**
  * @brief   ROS的回调函数，对新来的图像进行特征点追踪，发布
@@ -183,7 +184,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg) {
             init_pub = 1;
         } else {
 //            pub_img.publish(feature_points);
-
+            v_feature_points.push_back(feature_points);
         }
 
 
@@ -264,6 +265,12 @@ int main(int argc, char **argv) {
             if (count_line == 1) {
                 continue;
             }
+
+//            // 测试用
+//            if (count_line == 30) {
+//                break;
+//            }
+
             istringstream line(file_line);
             string img_stamp, img_name;
             getline(line, img_stamp, ',');
@@ -290,6 +297,57 @@ int main(int argc, char **argv) {
         cam_file.close();
     }
 
+    cv::FileStorage fs("feature_tracker.yml", cv::FileStorage::WRITE);
+    for (sensor_msgs::PointCloudPtr feature_points: v_feature_points) {
+        cout << "[main] 存储v_feature_points信息到文件 " << endl;
+
+        uint32_t seq = feature_points->header.seq;
+        uint64_t stamp = feature_points->header.stamp.toNSec();
+        string frame_id = feature_points->header.frame_id;
+        fs << "stamp " + to_string(stamp) << "{";  // 【bug】不能以数字开头
+        fs << "header" << "{";
+        fs << "seq" << to_string(seq);
+        fs << "stamp" << to_string(stamp);
+        fs << "frame_id" << frame_id;
+        fs << "}";
+
+        fs << "points" << "{";
+        auto points = feature_points->points;
+        for (int i = 0; i <= points.size() - 1; i++) {
+            auto point = points[i];
+            float x = point.x;
+            float y = point.y;
+            float z = point.z;
+            fs << "point" + to_string(i) << "{";
+            fs << "x" << x;
+            fs << "y" << y;
+            fs << "z" << z;
+            fs << "}";
+        }
+        fs << "}";
+
+        fs << "channels" << "{";
+        auto channels = feature_points->channels;
+        for (int i = 0; i <= channels.size() - 1; i++) {
+            fs << "channel" + to_string(i) << "{";
+            auto channel = channels[i];
+            string name = channel.name;
+            fs << "name" << name;
+            auto channel_values = channel.values;
+            fs << "channel_values" << "{";
+            for (int j = 0; j <= channel_values.size() - 1; j++) {
+                auto channel_value = channel_values[j];
+                fs << "channel_value" + to_string(j) << channel_value;
+            }
+            fs << "}";
+            fs << "}";
+        }
+        fs << "}";
+
+        fs << "}";
+    }
+
+    fs.release();
 
     return 0;
 }
