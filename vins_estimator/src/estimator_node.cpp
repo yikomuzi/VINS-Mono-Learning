@@ -166,6 +166,7 @@ getMeasurements()
 //imu回调函数，将imu_msg保存到imu_buf，IMU状态递推并发布[P,Q,V,header]
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
+    cout << "[imu_callback] imu_callback运行一次" <<endl;
     //判断时间间隔是否为正
     if (imu_msg->header.stamp.toSec() <= last_imu_t)
     {
@@ -199,6 +200,7 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 //feature回调函数，将feature_msg放入feature_buf     
 void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
+    cout << "[feature_callback] feature_callback运行一次" <<endl;
     if (!init_feature)
     {
         //skip the first detected feature, which doesn't contain optical flow speed
@@ -257,6 +259,7 @@ void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg)
 */
 void process()
 {
+    sleep(60*5);
     while (true)
     {
         std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
@@ -428,10 +431,10 @@ int main(int argc, char **argv)
     registerPub(n);
 
     //订阅IMU、feature、restart、match_points的topic,执行各自回调函数
-    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
-    ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
-    ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
+    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 5000, imu_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 5000, feature_callback);
+    ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 5000, restart_callback);
+    ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 5000, relocalization_callback);
 
     //创建VIO主线程
     std::thread measurement_process{process};

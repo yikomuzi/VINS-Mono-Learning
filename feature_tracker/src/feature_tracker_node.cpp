@@ -42,7 +42,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     //判断是否是第一帧
     if(first_image_flag)
     {
-        sleep(60*2);
+//        sleep(60*2);
         cout << "[img_callback] 第一帧图片" << endl;
         first_image_flag = false;
         first_image_time = img_msg->header.stamp.toSec();//记录第一个图像帧的时间

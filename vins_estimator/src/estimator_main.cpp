@@ -379,13 +379,17 @@ void process() {
 //        if (relo_msg != NULL)
 //            pubRelocalization(estimator);//"relo_relative_pose" 重定位位姿
         //ROS_ERROR("end: %f, at %f", img_msg->header.stamp.toSec(), ros::Time::now().toSec());
+
+        if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
+            update();//更新IMU参数[P,Q,V,ba,bg,a,g]
+
     }
 //        m_estimator.unlock();
 
 //        m_buf.lock();
 //        m_state.lock();
-    if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
-        update();//更新IMU参数[P,Q,V,ba,bg,a,g]
+//    if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
+//        update();//更新IMU参数[P,Q,V,ba,bg,a,g]
 //        m_state.unlock();
 //        m_buf.unlock();
 //    }
@@ -509,10 +513,10 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-//            // 测试用
-//            if (count_line == 30) {
-//                break;
-//            }
+            // 测试用
+            if (count_line == 20 * 5*10) {
+                break;
+            }
 
             istringstream line(file_line);
             string img_stamp, img_name;
@@ -588,15 +592,22 @@ int main(int argc, char **argv) {
         }
 
         cv::FileNode channels = fileNode["channels"];
+        int count_channel = 0;
         for (auto channel: channels) {
             sensor_msgs::ChannelFloat32 msgs_channel;
 
             string name = channel["name"];
+            msgs_channel.name = name;
             cv::FileNode channel_value = channel["channel_values"];
             for (auto value: channel_value) {
-                msgs_channel.values.push_back(value);
+                if (count_channel == 0) {
+                    msgs_channel.values.push_back((int) value);
+                } else {
+                    msgs_channel.values.push_back(value);
+                }
             }
             p_pointcloud->channels.push_back(msgs_channel);
+            count_channel++;
         }
 
         v_feature_points_yml.push_back(p_pointcloud);
@@ -615,8 +626,8 @@ int main(int argc, char **argv) {
 //    ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
 
     //创建VIO主线程
-//    std::thread measurement_process{process};
-    process();
+    std::thread measurement_process{process};
+//    process();
 
     ros::spin();
 

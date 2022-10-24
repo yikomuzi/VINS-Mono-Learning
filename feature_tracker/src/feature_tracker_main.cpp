@@ -226,31 +226,15 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg) {
 
 int main(int argc, char **argv) {
 
-    /// 读取yaml中的一些配置参数
-    std::string config_file = "/home/ubuntu/Desktop/VINS-Mono-Learning_study/catkin_ws/src/VINS-Mono-Learning/config/euroc/euroc_config.yaml";
-    cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
-    if (!fsSettings.isOpened()) {
-        std::cerr << "ERROR: Wrong path to settings" << std::endl;
-    }
-    fsSettings["image_topic"] >> IMAGE_TOPIC;
-    fsSettings["imu_topic"] >> IMU_TOPIC;
-    MAX_CNT = fsSettings["max_cnt"];
-    MIN_DIST = fsSettings["min_dist"];
-    ROW = fsSettings["image_height"];
-    COL = fsSettings["image_width"];
-    FREQ = fsSettings["freq"];
-    F_THRESHOLD = fsSettings["F_threshold"];
-    SHOW_TRACK = fsSettings["show_track"];
-    EQUALIZE = fsSettings["equalize"];
-    FISHEYE = fsSettings["fisheye"];
-    CAM_NAMES.push_back(config_file);
+    //ros初始化和设置句柄
+    ros::init(argc, argv, "feature_tracker");
+    ros::NodeHandle n("~");
 
-    WINDOW_SIZE = 20;
-    STEREO_TRACK = false;
-    FOCAL_LENGTH = 460;
-    PUB_THIS_FRAME = false;
+    //设置logger的级别。 只有级别大于或等于level的日志记录消息才会得到处理。
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
-    fsSettings.release();
+    //读取yaml中的一些配置参数
+    readParameters(n);
 
     /// 读取每个相机实例对应的相机内参
     for (int i = 0; i < NUM_OF_CAM; i++)
@@ -267,10 +251,10 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-//            // 测试用
-//            if (count_line == 30) {
-//                break;
-//            }
+            // 测试用
+            if (count_line == 20 * 5) {
+                break;
+            }
 
             istringstream line(file_line);
             string img_stamp, img_name;
@@ -283,7 +267,7 @@ int main(int argc, char **argv) {
             nsec = stamp % 1000000000;
 
             string img_path = "/remote-home/2132917/Desktop/EuRoC_MAV_Dataset/MH_01_easy/mav0/cam0/data/" + img_name;
-            cv::Mat img = imread(img_path, cv::IMREAD_COLOR);
+            cv::Mat img = imread(img_path, cv::IMREAD_GRAYSCALE);  // 【大bug!!!】搞了两天的究极问题，这里必须是IMREAD_GRAYSCALE，其他的都不行
             cv_bridge::CvImage img_bridge;
             sensor_msgs::Image img_msg; // >> message to be sent
             std_msgs::Header header; // empty header
@@ -388,6 +372,7 @@ int main(int argc, char **argv) {
             sensor_msgs::ChannelFloat32 msgs_channel;
 
             string name = channel["name"];
+            msgs_channel.name = name;
             cv::FileNode channel_value = channel["channel_values"];
             for (auto value: channel_value) {
                 msgs_channel.values.push_back(value);

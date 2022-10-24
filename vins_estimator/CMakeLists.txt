@@ -73,25 +73,5 @@ add_executable(estimator_main
 
 target_link_libraries(estimator_main ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES})
 
-add_executable(vins_estimator_test01
-        src/estimator_node_test01.cpp
-        src/parameters.cpp
-        src/estimator.cpp
-        src/feature_manager.cpp
-        src/factor/pose_local_parameterization.cpp
-        src/factor/projection_factor.cpp
-        src/factor/projection_td_factor.cpp
-        src/factor/marginalization_factor.cpp
-        src/utility/utility.cpp
-        src/utility/visualization.cpp
-        src/utility/CameraPoseVisualization.cpp
-        src/initial/solve_5pts.cpp
-        src/initial/initial_aligment.cpp
-        src/initial/initial_sfm.cpp
-        src/initial/initial_ex_rotation.cpp
-        )
-
-
-target_link_libraries(vins_estimator_test01 ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES})
 
 

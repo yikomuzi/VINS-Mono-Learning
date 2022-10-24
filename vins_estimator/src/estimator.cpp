@@ -190,7 +190,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
         {
             bool result = false;
             //有外参且当前帧时间戳大于初始化时间戳0.1秒，就进行初始化操作
-            if( ESTIMATE_EXTRINSIC != 2 && (header.stamp.toSec() - initial_timestamp) > 0.1)
+            if( ESTIMATE_EXTRINSIC != 2 && (header.stamp.toSec() - initial_timestamp) >= 0.1)
             {
                //视觉惯性联合初始化
                result = initialStructure();
