@@ -251,10 +251,10 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-            // 测试用
-            if (count_line == 20 * 5) {
-                break;
-            }
+//            // 测试用
+//            if (count_line == 20 * 5) {
+//                break;
+//            }
 
             istringstream line(file_line);
             string img_stamp, img_name;

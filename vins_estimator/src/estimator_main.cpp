@@ -513,10 +513,10 @@ int main(int argc, char **argv) {
                 continue;
             }
 
-            // 测试用
-            if (count_line == 20 * 5*10) {
-                break;
-            }
+//            // 测试用
+//            if (count_line == 20 * 5*10) {
+//                break;
+//            }
 
             istringstream line(file_line);
             string img_stamp, img_name;
@@ -600,11 +600,7 @@ int main(int argc, char **argv) {
             msgs_channel.name = name;
             cv::FileNode channel_value = channel["channel_values"];
             for (auto value: channel_value) {
-                if (count_channel == 0) {
-                    msgs_channel.values.push_back((int) value);
-                } else {
-                    msgs_channel.values.push_back(value);
-                }
+                msgs_channel.values.push_back(value);
             }
             p_pointcloud->channels.push_back(msgs_channel);
             count_channel++;
@@ -626,8 +622,8 @@ int main(int argc, char **argv) {
 //    ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
 
     //创建VIO主线程
-    std::thread measurement_process{process};
-//    process();
+//    std::thread measurement_process{process};
+    process();
 
     ros::spin();
 
