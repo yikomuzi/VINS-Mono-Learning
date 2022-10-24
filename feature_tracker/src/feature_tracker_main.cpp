@@ -256,6 +256,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < NUM_OF_CAM; i++)
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
 
+    /// 【关键】读取图片文件并循环运行img_callback
     ifstream cam_file("/remote-home/2132917/Desktop/EuRoC_MAV_Dataset/MH_01_easy/mav0/cam0/data.csv");
     if (cam_file.is_open()) {
         string file_line;
@@ -297,7 +298,10 @@ int main(int argc, char **argv) {
         cam_file.close();
     }
 
+
+    /// 将检测到的特征点保存到yml文件中
     cv::FileStorage fs("feature_tracker.yml", cv::FileStorage::WRITE);
+    fs << "feature_points" << "{";
     for (sensor_msgs::PointCloudPtr feature_points: v_feature_points) {
         cout << "[main] 存储v_feature_points信息到文件 " << endl;
 
@@ -346,8 +350,54 @@ int main(int argc, char **argv) {
 
         fs << "}";
     }
+    fs << "}";
 
     fs.release();
+
+
+    /// 读取yml文件内容，转换为对象
+    vector<sensor_msgs::PointCloudPtr> v_feature_points_yml;  // 创建一个数组存储原本应该发布的信息
+    cv::FileStorage fs_read;
+    fs_read.open("feature_tracker.yml", cv::FileStorage::READ);
+    cv::FileNode fileNodes = fs_read["feature_points"];
+    for (auto fileNode: fileNodes) {
+        sensor_msgs::PointCloudPtr p_pointcloud(new sensor_msgs::PointCloud());
+
+        string seq = fileNode["header"]["seq"];
+        string stamp = fileNode["header"]["stamp"];
+        string frame_id = fileNode["header"]["frame_id"];
+        p_pointcloud->header.seq = stoul(seq);
+        p_pointcloud->header.stamp = ros::Time(stoull(stamp) / 1000000000, stoull(stamp) % 1000000000);
+        p_pointcloud->header.frame_id = frame_id;
+
+        cv::FileNode points = fileNode["points"];
+        for (auto point: points) {
+            geometry_msgs::Point32 msgs_point32;
+
+            float x = point["x"];
+            float y = point["y"];
+            float z = point["z"];
+            msgs_point32.x = x;
+            msgs_point32.y = y;
+            msgs_point32.z = z;
+            p_pointcloud->points.push_back(msgs_point32);
+        }
+
+        cv::FileNode channels = fileNode["channels"];
+        for (auto channel: channels) {
+            sensor_msgs::ChannelFloat32 msgs_channel;
+
+            string name = channel["name"];
+            cv::FileNode channel_value = channel["channel_values"];
+            for (auto value: channel_value) {
+                msgs_channel.values.push_back(value);
+            }
+            p_pointcloud->channels.push_back(msgs_channel);
+        }
+
+        v_feature_points_yml.push_back(p_pointcloud);
+    }
+
 
     return 0;
 }

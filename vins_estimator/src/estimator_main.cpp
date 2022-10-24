@@ -487,11 +487,120 @@ int main(int argc, char **argv) {
     //用于RVIZ显示的Topic
     registerPub(n);
 
-    //订阅IMU、feature、restart、match_points的topic,执行各自回调函数
-    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
-    ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
-    ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
+    /// 读取并处理imu数据
+    ifstream imu_file("/remote-home/2132917/Desktop/EuRoC_MAV_Dataset/MH_01_easy/mav0/imu0/data.csv");
+    if (imu_file.is_open()) {
+        string file_line;
+        int count_line = 0;
+        while (getline(imu_file, file_line)) {
+            count_line++;
+            if (count_line == 1) {
+                continue;
+            }
+
+//            // 测试用
+//            if (count_line == 30) {
+//                break;
+//            }
+
+            istringstream line(file_line);
+            string img_stamp, img_name;
+            string s_imu_timestamp;
+            string s_w_RS_S_x, s_w_RS_S_y, s_w_RS_S_z, s_a_RS_S_x, s_a_RS_S_y, s_a_RS_S_z;
+            getline(line, s_imu_timestamp, ',');
+            getline(line, s_w_RS_S_x, ',');
+            getline(line, s_w_RS_S_y, ',');
+            getline(line, s_w_RS_S_z, ',');
+            getline(line, s_a_RS_S_x, ',');
+            getline(line, s_a_RS_S_y, ',');
+            getline(line, s_a_RS_S_z, '\r');
+
+            uint64_t stamp = stoul(s_imu_timestamp);
+            uint32_t sec, nsec;
+            sec = stamp / 1000000000;
+            nsec = stamp % 1000000000;
+            double w_RS_S_x, w_RS_S_y, w_RS_S_z, a_RS_S_x, a_RS_S_y, a_RS_S_z;
+            w_RS_S_x = stod(s_w_RS_S_x);
+            w_RS_S_y = stod(s_w_RS_S_y);
+            w_RS_S_z = stod(s_w_RS_S_z);
+            a_RS_S_x = stod(s_a_RS_S_x);
+            a_RS_S_x = stod(s_a_RS_S_x);
+            a_RS_S_x = stod(s_a_RS_S_x);
+
+
+            sensor_msgs::Imu imu_msg; // >> message to be sent
+            imu_msg.header.seq = count_line - 2; // user defined counter
+            imu_msg.header.stamp = ros::Time(sec, nsec); // time
+            imu_msg.angular_velocity.x = w_RS_S_x;
+            imu_msg.angular_velocity.y = w_RS_S_y;
+            imu_msg.angular_velocity.z = w_RS_S_z;
+            imu_msg.linear_acceleration.x = a_RS_S_x;
+            imu_msg.linear_acceleration.y = a_RS_S_y;
+            imu_msg.linear_acceleration.z = a_RS_S_z;
+
+            sensor_msgs::ImuConstPtr imu(new sensor_msgs::Imu(imu_msg));
+//            imu_callback(imu);
+            imu_buf.push(imu);
+        }
+        imu_file.close();
+    }
+
+
+    /// 读取并保持feature track的数据(读取yml文件内容，转换为对象)
+    vector<sensor_msgs::PointCloudPtr> v_feature_points_yml;  // 创建一个数组存储原本应该发布的信息
+    cv::FileStorage fs_read;
+    fs_read.open(
+            "/home/ubuntu/Desktop/VINS-Mono-Learning_study/catkin_ws/src/cmake-build-debug/devel/lib/feature_tracker/feature_tracker.yml",
+            cv::FileStorage::READ);
+    cv::FileNode fileNodes = fs_read["feature_points"];
+    for (auto fileNode: fileNodes) {
+        sensor_msgs::PointCloudPtr p_pointcloud(new sensor_msgs::PointCloud());
+
+        string seq = fileNode["header"]["seq"];
+        string stamp = fileNode["header"]["stamp"];
+        string frame_id = fileNode["header"]["frame_id"];
+        p_pointcloud->header.seq = stoul(seq);
+        p_pointcloud->header.stamp = ros::Time(stoull(stamp) / 1000000000, stoull(stamp) % 1000000000);
+        p_pointcloud->header.frame_id = frame_id;
+
+        cv::FileNode points = fileNode["points"];
+        for (auto point: points) {
+            geometry_msgs::Point32 msgs_point32;
+
+            float x = point["x"];
+            float y = point["y"];
+            float z = point["z"];
+            msgs_point32.x = x;
+            msgs_point32.y = y;
+            msgs_point32.z = z;
+            p_pointcloud->points.push_back(msgs_point32);
+        }
+
+        cv::FileNode channels = fileNode["channels"];
+        for (auto channel: channels) {
+            sensor_msgs::ChannelFloat32 msgs_channel;
+
+            string name = channel["name"];
+            cv::FileNode channel_value = channel["channel_values"];
+            for (auto value: channel_value) {
+                msgs_channel.values.push_back(value);
+            }
+            p_pointcloud->channels.push_back(msgs_channel);
+        }
+
+        v_feature_points_yml.push_back(p_pointcloud);
+    }
+
+    for (auto i: v_feature_points_yml) {
+        feature_buf.push(i);
+    }
+
+
+//    //订阅IMU、feature、restart、match_points的topic,执行各自回调函数
+//    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
+//    ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
+//    ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
+//    ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
 
     //创建VIO主线程
     std::thread measurement_process{process};
