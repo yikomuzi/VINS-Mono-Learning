@@ -135,6 +135,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
 */
 void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header)
 {
+    cout<<"[Estimator::processImage] 运行一次函数Estimator::processImage" <<endl;
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("Adding feature points %lu", image.size());
 
@@ -182,6 +183,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 
     if (solver_flag == INITIAL)//初始化
     {
+        cout<<"[Estimator::processImage] 初始化" <<endl;
         //frame_count是滑动窗口中图像帧的数量，一开始初始化为0，滑动窗口总帧数WINDOW_SIZE=10
         //确保有足够的frame参与初始化
         if (frame_count == WINDOW_SIZE)
@@ -197,6 +199,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
             }
             if(result)//初始化成功
             {
+                cout<<"[Estimator::processImage] 初始化成功--------------" <<endl;
                 //先进行一次滑动窗口非线性优化，得到当前帧与第一帧的位姿
                 solver_flag = NON_LINEAR;
                 solveOdometry();
@@ -209,14 +212,17 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                 last_P0 = Ps[0];
                 
             }
-            else
+            else {
+                cout<<"[Estimator::processImage] 初始化失败--------------" <<endl;
                 slideWindow();//初始化失败则直接滑动窗口
+            }
         }
         else
             frame_count++;//图像帧数量+1
     }
     else//紧耦合的非线性优化
     {
+        cout<<"[Estimator::processImage] 紧耦合的非线性优化" <<endl;
         TicToc t_solve;
         solveOdometry();
         ROS_DEBUG("solver costs: %fms", t_solve.toc());
@@ -320,7 +326,7 @@ bool Estimator::initialStructure()
     //此处的relative_R，relative_T为当前帧到参考帧（第l帧）的坐标系变换Rt
     if (!relativePose(relative_R, relative_T, l))
     {
-        ROS_INFO("Not enough features or parallax; Move device around");
+        cout<<"Not enough features or parallax; Move device around"<<endl;
         return false;
     }
 
@@ -331,11 +337,13 @@ bool Estimator::initialStructure()
               relative_R, relative_T,
               sfm_f, sfm_tracked_points))
     {
+        cout<< "[Estimator::initialStructure] sfm失败" <<endl;
         //求解失败则边缘化最早一帧并滑动窗口
         ROS_DEBUG("global SFM failed!");
         marginalization_flag = MARGIN_OLD;
         return false;
     }
+    cout<< "[Estimator::initialStructure] sfm成功" <<endl;
 
     //对于所有的图像帧，包括不在滑动窗口中的，提供初始的RT估计，然后solvePnP进行优化,得到每一帧的姿态
     map<double, ImageFrame>::iterator frame_it;
@@ -550,6 +558,7 @@ bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l)
         corres = f_manager.getCorresponding(i, WINDOW_SIZE);
         if (corres.size() > 20)
         {
+            cout<< "[Estimator::relativePose] 当前帧满足要求的对应的特征点数量--------"<< i <<endl;
             //计算平均视差
             double sum_parallax = 0;
             double average_parallax;
@@ -568,6 +577,7 @@ bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l)
             //同时返回窗口最后一帧（当前帧）到第l帧（参考帧）的Rt
             if(average_parallax * 460 > 30 && m_estimator.solveRelativeRT(corres, relative_R, relative_T))
             {
+                cout<<"[Estimator::relativePose] 平均视差满足要求--------"<< i <<endl;
                 l = i;
                 ROS_DEBUG("average_parallax %f choose l %d and newest frame to triangulate the whole structure", average_parallax * 460, l);
                 return true;

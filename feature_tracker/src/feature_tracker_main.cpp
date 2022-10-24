@@ -278,7 +278,7 @@ int main(int argc, char **argv) {
             getline(line, img_name, '\r');
             uint64_t stamp;
             uint32_t sec, nsec;
-            stamp = stoul(img_stamp);
+            stamp = stoull(img_stamp);
             sec = stamp / 1000000000;
             nsec = stamp % 1000000000;
 
