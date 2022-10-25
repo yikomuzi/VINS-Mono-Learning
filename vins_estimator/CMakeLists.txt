@@ -3,7 +3,7 @@ project(vins_estimator)
 
 #set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS "-std=c++11")
-set(CMAKE_CXX_FLAGS "-O3") # 【问题】这里没有-O3优化便会失败?
+#set(CMAKE_CXX_FLAGS "-O3") # 【问题】这里没有-O3优化便会失败?  【解决】一些规定运算时间实时性的参数设置大一些就可以了!!!!!
 #-DEIGEN_USE_MKL_ALL")
 #set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
